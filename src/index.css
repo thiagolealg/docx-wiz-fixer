@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -101,5 +102,40 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  }
+
+  /* Extra design tokens */
+  :root {
+    --brand: 252 83% 54%;
+    --brand-2: 198 93% 60%;
+    --brand-3: 280 100% 70%;
+
+    --shadow-elegant: 0 20px 40px -12px hsl(var(--brand) / 0.25);
+    --shadow-glow: 0 0 60px hsl(var(--brand-2) / 0.35);
+
+    --gradient-hero: radial-gradient(1200px 400px at 50% 0%, hsl(var(--brand) / 0.15) 0%, transparent 50%),
+                     radial-gradient(800px 300px at 80% 10%, hsl(var(--brand-2) / 0.18) 0%, transparent 60%),
+                     radial-gradient(900px 360px at 20% 0%, hsl(var(--brand-3) / 0.12) 0%, transparent 60%);
+  }
+  .dark {
+    --shadow-elegant: 0 20px 40px -12px hsl(var(--brand) / 0.35);
+    --shadow-glow: 0 0 70px hsl(var(--brand-2) / 0.45);
+  }
+}
+
+@layer components {
+  .hero-glow {
+    background: var(--gradient-hero);
+    filter: blur(30px) saturate(120%);
+    opacity: 0.8;
+    animation: heroPulse 12s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  @keyframes heroPulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
   }
 }
