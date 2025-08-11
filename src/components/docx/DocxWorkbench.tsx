@@ -14,6 +14,7 @@ import {
   htmlToDocxBlob,
   extractParagraphsFromHtml,
   findParagraphByItemNumber,
+  renumberHierarchical,
 } from "@/utils/docx";
 
 const downloadBlob = (blob: Blob, filename: string) => {
@@ -92,6 +93,16 @@ export const DocxWorkbench = () => {
     }
   };
 
+  const runRenumber = () => {
+    const base = displayParagraphs;
+    if (!base.length) return;
+    const fixed = renumberHierarchical(base);
+    const changes = fixed.reduce((acc, p, i) => acc + (p !== base[i] ? 1 : 0), 0);
+    setNormalized(fixed);
+    setNumberingIssues([]);
+    toast({ title: "Numeração corrigida", description: `${changes} linha(s) ajustada(s).` });
+  };
+
   const applyEditByItemNumber = () => {
     if (!editItemNumber.trim()) {
       toast({ title: "Item não informado", description: "Informe o número do item (ex: 6.1.1)", variant: "destructive" });
@@ -168,6 +179,7 @@ export const DocxWorkbench = () => {
                 <div className="flex items-end gap-2">
                   <Button onClick={runNormalization} variant="default">Normalizar</Button>
                   <Button onClick={runNumberingCheck} variant="secondary">Checar numeração</Button>
+                  <Button onClick={runRenumber} variant="secondary">Corrigir numeração</Button>
                   <Button onClick={downloadDocx} variant="outline">Baixar .docx</Button>
                 </div>
               </div>

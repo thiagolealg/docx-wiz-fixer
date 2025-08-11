@@ -201,6 +201,53 @@ export function checkNumbering(paragraphs: string[]): NumberingIssue[] {
   return issues;
 }
 
+export function renumberHierarchical(paragraphs: string[]): string[] {
+  const out: string[] = [];
+  let current: number[] = [];
+  const re = /^\s*(\d+(?:\.\d+)*)([.)])?\s+(.*)$/;
+  for (let i = 0; i < paragraphs.length; i++) {
+    const original = paragraphs[i];
+    const m = original.match(re);
+    if (!m) {
+      out.push(original);
+      continue;
+    }
+    const [, numberingStr, delim = "", restRaw] = m;
+    const rest = restRaw.replace(/\s+/g, " ").trim();
+    const found = numberingStr.split(".").map((n) => parseInt(n, 10));
+    let expected: number[] = [];
+
+    if (current.length === 0) {
+      // First numbered item: respect existing numbering as the starting point
+      expected = found.slice();
+    } else {
+      const dFound = found.length;
+      const dCurr = current.length;
+      if (dFound === dCurr) {
+        // same level: increment last
+        expected = current.slice(0, dCurr - 1).concat([current[dCurr - 1] + 1]);
+      } else if (dFound === dCurr + 1) {
+        // one level deeper: start at 1
+        expected = current.concat([1]);
+      } else if (dFound < dCurr) {
+        // going up levels: increment at the new last level
+        expected = current.slice(0, dFound - 1).concat([current[dFound - 1] + 1]);
+      } else {
+        // jumped multiple levels deeper: fill missing levels with 1
+        const toAdd = dFound - dCurr;
+        expected = current.slice();
+        for (let k = 0; k < toAdd; k++) expected.push(1);
+      }
+    }
+
+    const expectedStr = expected.join(".");
+    const replaced = `${expectedStr}${delim ? delim : ""} ${rest}`;
+    out.push(replaced);
+    current = expected;
+  }
+  return out;
+}
+
 export function compareParagraphSets(reference: string[], target: string[]): CompareResult {
   const norm = (arr: string[]) => arr.map((p) => p.replace(/\s+/g, " ").trim().toLowerCase());
   const a = norm(reference);
