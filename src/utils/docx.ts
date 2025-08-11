@@ -19,6 +19,11 @@ export interface CompareResult {
   extraInTarget: string[]; // paragraphs present in target but not in reference
 }
 
+export interface ParagraphSearchResult {
+  index: number;
+  paragraph: string;
+}
+
 export async function fileToArrayBuffer(file: File): Promise<ArrayBuffer> {
   return await file.arrayBuffer();
 }
@@ -84,6 +89,32 @@ ${body}
 </article>
 </body>
 </html>`;
+}
+
+export function findParagraphByItemNumber(paragraphs: string[], itemNumber: string): ParagraphSearchResult {
+  // Normalize the search term by removing extra spaces and converting to lowercase
+  const searchTerm = itemNumber.trim().toLowerCase();
+  
+  for (let i = 0; i < paragraphs.length; i++) {
+    const paragraph = paragraphs[i];
+    
+    // Check if paragraph starts with the item number followed by space, period, or )
+    const regex = new RegExp(`^\\s*${escapeRegex(searchTerm)}[\\s\\.)]+`, 'i');
+    if (regex.test(paragraph)) {
+      return { index: i, paragraph };
+    }
+    
+    // Also check for exact match at the beginning
+    if (paragraph.toLowerCase().startsWith(searchTerm.toLowerCase())) {
+      return { index: i, paragraph };
+    }
+  }
+  
+  return { index: -1, paragraph: "" };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export function checkNumbering(paragraphs: string[]): NumberingIssue[] {

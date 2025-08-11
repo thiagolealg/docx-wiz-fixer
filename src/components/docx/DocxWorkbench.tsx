@@ -13,6 +13,7 @@ import {
   compareParagraphSets,
   htmlToDocxBlob,
   extractParagraphsFromHtml,
+  findParagraphByItemNumber,
 } from "@/utils/docx";
 
 const downloadBlob = (blob: Blob, filename: string) => {
@@ -34,7 +35,7 @@ export const DocxWorkbench = () => {
     { index: number; found: number; expected: number; text: string }[]
   >([]);
 
-  const [editIndex, setEditIndex] = useState<number>(0);
+  const [editItemNumber, setEditItemNumber] = useState<string>("");
   const [editText, setEditText] = useState<string>("");
 
   const [referenceParagraphs, setReferenceParagraphs] = useState<string[]>([]);
@@ -52,7 +53,7 @@ export const DocxWorkbench = () => {
       setPrimaryParagraphs(baseParas);
       setNormalized([]);
       setNumberingIssues([]);
-      setEditIndex(0);
+      setEditItemNumber("");
       setEditText("");
       toast({ title: "Documento carregado", description: `${file.name} lido com sucesso.` });
     } catch (e) {
@@ -91,16 +92,34 @@ export const DocxWorkbench = () => {
     }
   };
 
-  const applyEdit = () => {
-    const idx = Number(editIndex);
-    const base = [...displayParagraphs];
-    if (Number.isNaN(idx) || idx < 1 || idx > base.length) {
-      toast({ title: "Índice inválido", description: "Informe um número de parágrafo existente.", variant: "destructive" });
+  const applyEditByItemNumber = () => {
+    if (!editItemNumber.trim()) {
+      toast({ title: "Item não informado", description: "Informe o número do item (ex: 6.1.1)", variant: "destructive" });
       return;
     }
-    base[idx - 1] = editText.trim();
+
+    const result = findParagraphByItemNumber(displayParagraphs, editItemNumber.trim());
+    if (result.index === -1) {
+      toast({ title: "Item não encontrado", description: `Não foi encontrado parágrafo com o item "${editItemNumber}"`, variant: "destructive" });
+      return;
+    }
+
+    const base = [...displayParagraphs];
+    base[result.index] = editText.trim();
     setNormalized(base);
-    toast({ title: "Parágrafo atualizado", description: `Parágrafo ${idx} alterado.` });
+    toast({ title: "Parágrafo atualizado", description: `Item ${editItemNumber} alterado.` });
+  };
+
+  const loadParagraphByItemNumber = () => {
+    if (!editItemNumber.trim()) return;
+    
+    const result = findParagraphByItemNumber(displayParagraphs, editItemNumber.trim());
+    if (result.index !== -1) {
+      setEditText(result.paragraph);
+      toast({ title: "Parágrafo carregado", description: `Conteúdo do item ${editItemNumber} carregado para edição.` });
+    } else {
+      toast({ title: "Item não encontrado", description: `Não foi encontrado parágrafo com o item "${editItemNumber}"`, variant: "destructive" });
+    }
   };
 
   const runCompare = () => {
@@ -169,19 +188,31 @@ export const DocxWorkbench = () => {
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="text-lg font-medium">Editar parágrafo específico</h3>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="space-y-2">
-                        <label className="text-sm">Nº do parágrafo</label>
-                        <Input type="number" min={1} value={editIndex} onChange={(e) => setEditIndex(Number(e.target.value))} />
+                    <h3 className="text-lg font-medium">Editar por número do item</h3>
+                    <div className="grid gap-3">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="space-y-2">
+                          <label className="text-sm">Nº do item (ex: 6.1.1)</label>
+                          <Input 
+                            type="text" 
+                            placeholder="6.1.1" 
+                            value={editItemNumber} 
+                            onChange={(e) => setEditItemNumber(e.target.value)} 
+                          />
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Button onClick={loadParagraphByItemNumber} variant="outline" size="sm">
+                            Carregar
+                          </Button>
+                        </div>
                       </div>
-                      <div className="sm:col-span-2 space-y-2">
+                      <div className="space-y-2">
                         <label className="text-sm">Novo conteúdo</label>
                         <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={5} />
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={applyEdit}>Aplicar alteração</Button>
+                      <Button onClick={applyEditByItemNumber}>Aplicar alteração</Button>
                     </div>
 
                     {numberingIssues.length > 0 && (
