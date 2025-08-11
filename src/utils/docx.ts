@@ -53,10 +53,81 @@ export function extractParagraphsFromHtml(html: string): string[] {
   const container = document.createElement("div");
   container.innerHTML = html;
   const paras: string[] = [];
-  container.querySelectorAll("p, li").forEach((el) => {
-    const text = (el.textContent || "").replace(/\s+/g, " ").trim();
-    if (text) paras.push(text);
-  });
+
+  // Helper to normalize whitespace
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+
+  // Extract text of an LI without its nested lists
+  const liMainText = (li: Element) => {
+    const clone = li.cloneNode(true) as Element;
+    clone.querySelectorAll("ol, ul").forEach((n) => n.remove());
+    return norm(clone.textContent || "");
+  };
+
+  // Process nested ordered lists to generate literal numbering like 6.1.2.1
+  const processOl = (ol: Element, stack: number[]) => {
+    const startAttr = (ol as HTMLOListElement).getAttribute("start");
+    let start = startAttr ? parseInt(startAttr, 10) : 1;
+    let counter = start - 1;
+
+    Array.from(ol.children).forEach((li) => {
+      if (li.tagName.toLowerCase() !== "li") return;
+      const valueAttr = (li as HTMLLIElement).getAttribute("value");
+      const current = valueAttr ? parseInt(valueAttr, 10) : (counter + 1);
+      counter = current;
+      const numbering = [...stack, current].join(".");
+
+      const text = liMainText(li);
+      if (text) paras.push(`${numbering} ${text}`);
+
+      // Handle nested lists for deeper levels (e.g., 6.1.2.1)
+      (li as HTMLLIElement).querySelectorAll(":scope > ol").forEach((childOl) => {
+        processOl(childOl, [...stack, current]);
+      });
+
+      // Also include unordered sublists as plain paragraphs (no numbering)
+      (li as HTMLLIElement).querySelectorAll(":scope > ul > li").forEach((subLi) => {
+        const bulletText = norm((subLi as HTMLLIElement).textContent || "");
+        if (bulletText) paras.push(bulletText);
+      });
+    });
+  };
+
+  const walk = (root: Element) => {
+    Array.from(root.children).forEach((el) => {
+      const tag = el.tagName.toLowerCase();
+      if (tag === "p") {
+        const text = norm(el.textContent || "");
+        if (text) paras.push(text);
+        return;
+      }
+      if (tag === "ol") {
+        processOl(el, []);
+        return; // processOl already handles its nested lists
+      }
+      if (tag === "ul") {
+        // Unordered lists: keep items as plain paragraphs
+        el.querySelectorAll(":scope > li").forEach((li) => {
+          const text = liMainText(li);
+          if (text) paras.push(text);
+          // process nested ordered lists inside this li
+          (li as HTMLLIElement).querySelectorAll(":scope > ol").forEach((childOl) => {
+            processOl(childOl, []);
+          });
+          // recurse into nested unordered lists
+          (li as HTMLLIElement).querySelectorAll(":scope > ul").forEach((childUl) => {
+            walk(childUl);
+          });
+        });
+        return;
+      }
+      // other containers: continue walking
+      walk(el);
+    });
+  };
+
+  walk(container);
+
   return paras;
 }
 
@@ -92,24 +163,18 @@ ${body}
 }
 
 export function findParagraphByItemNumber(paragraphs: string[], itemNumber: string): ParagraphSearchResult {
-  // Normalize the search term by removing extra spaces and converting to lowercase
-  const searchTerm = itemNumber.trim().toLowerCase();
-  
+  const target = itemNumber.trim();
   for (let i = 0; i < paragraphs.length; i++) {
     const paragraph = paragraphs[i];
-    
-    // Check if paragraph starts with the item number followed by space, period, or )
-    const regex = new RegExp(`^\\s*${escapeRegex(searchTerm)}[\\s\\.)]+`, 'i');
-    if (regex.test(paragraph)) {
-      return { index: i, paragraph };
-    }
-    
-    // Also check for exact match at the beginning
-    if (paragraph.toLowerCase().startsWith(searchTerm.toLowerCase())) {
+    if (
+      paragraph.startsWith(target + " ") ||
+      paragraph.startsWith(target + ".") ||
+      paragraph.startsWith(target + ")") ||
+      paragraph === target
+    ) {
       return { index: i, paragraph };
     }
   }
-  
   return { index: -1, paragraph: "" };
 }
 
