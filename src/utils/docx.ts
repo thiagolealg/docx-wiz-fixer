@@ -1,6 +1,6 @@
 import mammoth from "mammoth";
 // @ts-ignore - no types for this module
-import HtmlDocx from "html-docx-js/dist/html-docx";
+
 
 export interface ParsedDocx {
   html: string;
@@ -123,8 +123,24 @@ export function compareParagraphSets(reference: string[], target: string[]): Com
   return { missingInTarget, extraInTarget };
 }
 
-export function htmlToDocxBlob(html: string): Blob {
+export async function htmlToDocxBlob(html: string): Promise<Blob> {
+  const HtmlDocx = await loadHtmlDocx();
   return HtmlDocx.asBlob(html);
+}
+
+async function loadHtmlDocx(): Promise<any> {
+  if (typeof window !== "undefined" && (window as any).HTMLDocx) {
+    return (window as any).HTMLDocx;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load html-docx-js"));
+    document.head.appendChild(script);
+  });
+  return (window as any).HTMLDocx;
 }
 
 function escapeHtml(s: string): string {

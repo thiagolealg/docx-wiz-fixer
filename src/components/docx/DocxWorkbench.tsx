@@ -113,10 +113,10 @@ export const DocxWorkbench = () => {
     toast({ title: "Comparação concluída", description: "Verifique os resultados abaixo." });
   };
 
-  const downloadDocx = () => {
+  const downloadDocx = async () => {
     if (!displayParagraphs.length) return;
     const html = buildHtmlFromParagraphs(displayParagraphs);
-    const blob = htmlToDocxBlob(html);
+    const blob = await htmlToDocxBlob(html);
     const name = primaryName ? primaryName.replace(/\.docx$/i, "-normalizado.docx") : "documento-normalizado.docx";
     downloadBlob(blob, name);
     toast({ title: "Download iniciado", description: "Arquivo .docx sendo baixado." });
